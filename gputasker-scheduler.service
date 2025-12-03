@@ -1,0 +1,17 @@
+[Unit]
+Description=GPU Tasker Scheduler Service
+After=network.target
+Requires=gputasker-web.service
+
+[Service]
+Type=simple
+User=d2022-yjy
+Group=d2022-yjy
+WorkingDirectory=/home/nfs/d2022-yjy/gputasker
+Environment=PYTHONPATH=/home/nfs/d2022-yjy/gputasker
+ExecStart=/bin/bash -c 'source /home/nfs/share-yjy/miniconda3/bin/activate && conda activate gputasker && python main.py'
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target 

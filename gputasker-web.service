@@ -1,0 +1,16 @@
+[Unit]
+Description=GPU Tasker Django Web Service
+After=network.target
+
+[Service]
+Type=simple
+User=d2022-yjy
+Group=d2022-yjy
+WorkingDirectory=/home/nfs/d2022-yjy/gputasker
+Environment=PYTHONPATH=/home/nfs/d2022-yjy/gputasker
+ExecStart=/bin/bash -c 'source /home/nfs/share-yjy/miniconda3/bin/activate && conda activate gputasker && python manage.py runserver --insecure 0.0.0.0:8888'
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target 

@@ -21,3 +21,7 @@ gpu_tasker/task_info.log
 running_log_backup_*.tar.gz
 nginx/log/
 uwsgi/log/
+running_log/*
+
+private_key/*
+server_log/*
