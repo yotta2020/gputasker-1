@@ -10,3 +10,14 @@ server_log
 
 *.sqlite3*
 .idea
+
+# Local artifacts that should never be committed
+gputasker/
+gputasker-ops/
+gputasker-ops-1/
+mysql/
+static_collected/
+gpu_tasker/task_info.log
+running_log_backup_*.tar.gz
+nginx/log/
+uwsgi/log/
