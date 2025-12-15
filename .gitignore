@@ -5,8 +5,7 @@ running_log
 private_key
 server_log
 
-*/migrations/*
-!*/migrations/__init__.py
+**/migrations/__pycache__/
 
 *.sqlite3*
 .idea

@@ -17,6 +17,9 @@ from django.contrib import admin
 from django.urls import path
 from django.shortcuts import redirect
 
+from gpu_info.views import report_gpu
+from task.views import report_tasks
+
 
 admin.site.site_header = 'GPU任务管理平台'
 admin.site.site_title = 'GPU任务管理平台'
@@ -28,5 +31,7 @@ def index_view(request):
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('api/v1/report_gpu/', report_gpu),
+    path('api/v1/report_tasks/', report_tasks),
     path('', index_view)
 ]

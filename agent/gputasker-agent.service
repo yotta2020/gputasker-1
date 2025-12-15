@@ -1,0 +1,21 @@
+[Unit]
+Description=GPU Tasker Node GPU Agent
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# 建议创建一个专用用户，例如 gputasker
+User=gputasker
+Group=gputasker
+
+# 按实际部署路径调整
+WorkingDirectory=/opt/gputasker
+EnvironmentFile=-/etc/gputasker/agent.env
+
+ExecStart=/usr/bin/python3 /opt/gputasker/agent/gpu_agent.py
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

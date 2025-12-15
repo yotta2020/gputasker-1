@@ -9,6 +9,10 @@ User=d2022-yjy
 Group=d2022-yjy
 WorkingDirectory=/home/nfs/d2022-yjy/gputasker
 Environment=PYTHONPATH=/home/nfs/d2022-yjy/gputasker
+# GPU 信息更新模式：ssh（默认，中心端 SSH 扫描） / report（默认，节点上报）
+Environment=GPUTASKER_GPU_UPDATE_MODE=report
+# 主循环最小间隔（秒），默认 10
+Environment=GPUTASKER_LOOP_INTERVAL_SECONDS=10
 ExecStart=/bin/bash -c 'source /home/nfs/share-yjy/miniconda3/bin/activate && conda activate gputasker && python main.py'
 Restart=always
 RestartSec=10

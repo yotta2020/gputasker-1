@@ -31,6 +31,10 @@ nohup bash -c "$ACTIVATE_CMD && python main.py" > "$LOG_DIR/scheduler.log" 2>&1 
 SCHEDULER_PID=$!
 echo "Scheduler PID: $SCHEDULER_PID"
 
+# 启动所有 Node agent（最佳努力，不阻塞启动流程）
+echo "尝试启动所有Node的agent..."
+bash -c "$ACTIVATE_CMD && python manage.py node_agents start --ip-file node_ips.txt" > "$LOG_DIR/node_agents.log" 2>&1 || echo "启动Node agent失败（不影响本机服务）"
+
 # 保存PID到文件
 echo "$DJANGO_PID" > "$LOG_DIR/django.pid"
 echo "$SCHEDULER_PID" > "$LOG_DIR/scheduler.pid"

@@ -1,0 +1,8 @@
+{% extends "admin/change_form.html" %}
+
+{% block submit_buttons_bottom %}
+{{ block.super }}
+<div class="submit-row">
+    <input type="submit" name="_kill_running_log" value="一键结束进程（仅当前记录）" onclick="return confirm('确认结束当前运行记录对应的进程？');" />
+</div>
+{% endblock %}

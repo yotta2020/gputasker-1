@@ -12,6 +12,8 @@ class GPUTask(models.Model):
     STATUS_CHOICE = (
         (-2, '未就绪'),
         (-1, '运行失败'),
+        (-4, '节点失联'),
+        (-3, '调度中'),
         (0, '准备就绪'),
         (1, '运行中'),
         (2, '已完成'),
@@ -77,16 +79,20 @@ class GPUTask(models.Model):
 class GPUTaskRunningLog(models.Model):
     STATUS_CHOICE = (
         (-1, '运行失败'),
+        (-2, '节点失联'),
         (1, '运行中'),
         (2, '已完成'),
     )
     index = models.PositiveSmallIntegerField('序号')
     task = models.ForeignKey(GPUTask, verbose_name='任务', on_delete=models.CASCADE, related_name='task_logs')
     server = models.ForeignKey(GPUServer, verbose_name='服务器', on_delete=models.SET_NULL, related_name='task_logs', null=True)
-    pid = models.IntegerField('PID')
+    pid = models.IntegerField('SSH PID')
+    remote_pid = models.IntegerField('远端PID', blank=True, null=True)
+    remote_pgid = models.IntegerField('远端PGID', blank=True, null=True)
     gpus = models.CharField('GPU', max_length=20)
     log_file_path = models.FilePathField(path='running_log', match='.*\.log$', verbose_name="日志文件")
     status = models.SmallIntegerField('状态', choices=STATUS_CHOICE, default=1)
+    last_heartbeat_at = models.DateTimeField('最近心跳时间', blank=True, null=True)
     start_at = models.DateTimeField('开始时间', auto_now_add=True)
     update_at = models.DateTimeField('更新时间', auto_now=True)
 
@@ -99,6 +105,7 @@ class GPUTaskRunningLog(models.Model):
         return self.task.name + '-' + str(self.index)
 
     def kill(self):
+        # 兼容旧逻辑：默认只杀 master 本地 ssh 进程（不保证远端训练被终止）。
         os.kill(self.pid, signal.SIGKILL)
     
     def delete_log_file(self):
