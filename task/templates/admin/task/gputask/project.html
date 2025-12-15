@@ -7,46 +7,44 @@
     <h2>
       <a href="/admin/task/gputask/#/admin/task/gputask/">GPU任务</a>
       {% if project %}
-        / Project: {{ project.name }}
+      / Project: {{ project.name }}
       {% else %}
-        / Project
+      / Project
       {% endif %}
     </h2>
 
     {% if project %}
-      <ul class="object-tools">
-        <li>
-          <a href="/admin/task/taskgroup/add/?project={{ project.id }}#/admin/task/taskgroup/add/" class="addlink">新增 Group</a>
-        </li>
-        <li>
-          <a href="/admin/task/project/{{ project.id }}/change/#/admin/task/project/{{ project.id }}/change/">编辑 Project</a>
-        </li>
-      </ul>
+    <ul class="object-tools">
+      <li>
+        <a href="/admin/task/taskgroup/add/?project={{ project.id }}#/admin/task/taskgroup/add/" class="addlink">新增
+          Group</a>
+      </li>
+      <li>
+        <a href="/admin/task/project/{{ project.id }}/change/#/admin/task/project/{{ project.id }}/change/">编辑
+          Project</a>
+      </li>
+    </ul>
     {% endif %}
 
     {% if not project %}
-      <p>{% trans "Project not found." %}</p>
+    <p>{% trans "Project not found." %}</p>
     {% else %}
-      {% if groups %}
-        <div style="display:flex;flex-wrap:wrap;gap:12px;">
-          {% for g in groups %}
-            <div class="module" style="padding:12px;min-width:240px;">
-              <a
-                href="/admin/task/gputask/group/{{ g.id }}/"
-                data-open-tab="1"
-                data-tab-url="/admin/task/gputask/group/{{ g.id }}/"
-                data-tab-eid="gputask-group-{{ g.id }}"
-                data-tab-name="Group: {{ g.name }}"
-              >📁 {{ g.name }}</a>
-              <span style="margin-left:8px;">
-                <a href="/admin/task/taskgroup/{{ g.id }}/change/#/admin/task/taskgroup/{{ g.id }}/change/">编辑</a>
-              </span>
-            </div>
-          {% endfor %}
-        </div>
-      {% else %}
-        <p>{% trans "No groups." %}</p>
-      {% endif %}
+    {% if groups %}
+    <div style="display:flex;flex-wrap:wrap;gap:12px;">
+      {% for g in groups %}
+      <div class="module" style="padding:12px;min-width:240px;">
+        <a href="/admin/task/gputask/group/{{ g.id }}/" data-open-tab="1"
+          data-tab-url="/admin/task/gputask/group/{{ g.id }}/" data-tab-eid="gputask-group-{{ g.id }}"
+          data-tab-name="Group: {{ g.name }}">📁 {{ g.name }}</a>
+        <span style="margin-left:8px;">
+          <a href="/admin/task/taskgroup/{{ g.id }}/change/#/admin/task/taskgroup/{{ g.id }}/change/">编辑</a>
+        </span>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p>{% trans "No groups." %}</p>
+    {% endif %}
     {% endif %}
   </div>
 </div>
@@ -62,7 +60,7 @@
           app.openTab(payload);
           return true;
         }
-      } catch (e) {}
+      } catch (e) { }
       return false;
     }
 

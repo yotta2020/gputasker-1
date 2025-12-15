@@ -3,121 +3,114 @@
 
 {% block content %}
 <div id="content-main">
-  <ul class="object-tools">
-    <li><a href="/admin/task/project/add/#/admin/task/project/add/" class="addlink">新增 Project</a></li>
-  </ul>
+    <ul class="object-tools">
+        <li><a href="/admin/task/project/add/#/admin/task/project/add/" class="addlink">新增 Project</a></li>
+    </ul>
 
-  <div class="module">
-    <h2>Projects</h2>
-    {% if projects %}
-      <div style="display:flex;flex-wrap:wrap;gap:12px;">
-        {% for p in projects %}
-          <div class="module" style="padding:12px;min-width:240px;">
-            <a
-              href="/admin/task/gputask/project/{{ p.id }}/"
-              data-open-tab="1"
-              data-tab-url="/admin/task/gputask/project/{{ p.id }}/"
-              data-tab-eid="gputask-project-{{ p.id }}"
-              data-tab-name="Project: {{ p.name }}"
-            >📁 {{ p.name }}</a>
-            <span style="margin-left:8px;">
-              <a href="/admin/task/project/{{ p.id }}/change/#/admin/task/project/{{ p.id }}/change/">编辑</a>
-            </span>
-          </div>
-        {% endfor %}
-      </div>
-    {% else %}
-      <p>{% trans "No projects." %}</p>
-    {% endif %}
-  </div>
-
-  <div class="module">
-    <h2>Recent Tasks</h2>
-    {% if recent_tasks %}
-      <div class="results">
-        <table id="result_list">
-          <thead>
-            <tr>
-              <th>任务名称</th>
-              <th>Project</th>
-              <th>Group</th>
-              <th>状态</th>
-              <th>创建时间</th>
-              <th>更新时间</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for t in recent_tasks %}
-              <tr class="{% cycle 'row1' 'row2' %}">
-                <th>
-                  <a href="{% url 'admin:task_gputask_change' t.id %}">{{ t.name }}</a>
-                </th>
-                <td>
-                  {% if t.group and t.group.project %}
-                    {{ t.group.project.name }}
-                  {% else %}
-                    -
-                  {% endif %}
-                </td>
-                <td>
-                  {% if t.group %}
-                    <a
-                      href="/admin/task/gputask/group/{{ t.group.id }}/"
-                      data-open-tab="1"
-                      data-tab-url="/admin/task/gputask/group/{{ t.group.id }}/"
-                      data-tab-eid="gputask-group-{{ t.group.id }}"
-                      data-tab-name="Group: {{ t.group.name }}"
-                    >{{ t.group.name }}</a>
-                  {% else %}
-                    -
-                  {% endif %}
-                </td>
-                <td>{{ t.get_status_display }}</td>
-                <td>{{ t.create_at }}</td>
-                <td>{{ t.update_at }}</td>
-              </tr>
+    <div class="module">
+        <h2>Projects</h2>
+        {% if projects %}
+        <div style="display:flex;flex-wrap:wrap;gap:12px;">
+            {% for p in projects %}
+            <div class="module" style="padding:12px;min-width:240px;">
+                <a href="/admin/task/gputask/project/{{ p.id }}/" data-open-tab="1"
+                    data-tab-url="/admin/task/gputask/project/{{ p.id }}/" data-tab-eid="gputask-project-{{ p.id }}"
+                    data-tab-name="Project: {{ p.name }}">📁 {{ p.name }}</a>
+                <span style="margin-left:8px;">
+                    <a href="/admin/task/project/{{ p.id }}/change/#/admin/task/project/{{ p.id }}/change/">编辑</a>
+                </span>
+            </div>
             {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    {% else %}
-      <p>{% trans "No tasks." %}</p>
-    {% endif %}
-  </div>
+        </div>
+        {% else %}
+        <p>{% trans "No projects." %}</p>
+        {% endif %}
+    </div>
+
+    <div class="module">
+        <h2>Recent Tasks</h2>
+        {% if recent_tasks %}
+        <div class="results">
+            <table id="result_list">
+                <thead>
+                    <tr>
+                        <th>任务名称</th>
+                        <th>Project</th>
+                        <th>Group</th>
+                        <th>状态</th>
+                        <th>创建时间</th>
+                        <th>更新时间</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for t in recent_tasks %}
+                    <tr class="{% cycle 'row1' 'row2' %}">
+                        <th>
+                            <a href="{% url 'admin:task_gputask_change' t.id %}">{{ t.name }}</a>
+                        </th>
+                        <td>
+                            {% if t.group and t.group.project %}
+                            {{ t.group.project.name }}
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if t.group %}
+                            <a href="/admin/task/gputask/group/{{ t.group.id }}/" data-open-tab="1"
+                                data-tab-url="/admin/task/gputask/group/{{ t.group.id }}/"
+                                data-tab-eid="gputask-group-{{ t.group.id }}"
+                                data-tab-name="Group: {{ t.group.name }}">{{ t.group.name }}</a>
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                        <td>{{ t.get_status_display }}</td>
+                        <td>{{ t.create_at }}</td>
+                        <td>{{ t.update_at }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p>{% trans "No tasks." %}</p>
+        {% endif %}
+    </div>
 </div>
 
 <script>
-  (function () {
-    function tryOpenTab(url, name, eid) {
-      try {
-        var app = window.parent && window.parent.app;
-        if (app && typeof app.openTab === 'function') {
-          var payload = { url: url, name: name };
-          if (eid) payload.eid = eid;
-          app.openTab(payload);
-          return true;
+    (function () {
+        function tryOpenTab(url, name, eid) {
+            try {
+                var app = window.parent && window.parent.app;
+                if (app && typeof app.openTab === 'function') {
+                    var payload = { url: url, name: name };
+                    if (eid) payload.eid = eid;
+                    app.openTab(payload);
+                    return true;
+                }
+            } catch (e) { }
+            return false;
         }
-      } catch (e) {}
-      return false;
-    }
 
-    document.addEventListener(
-      'click',
-      function (e) {
-        var target = e.target;
-        var a = target && target.closest ? target.closest('a[data-open-tab="1"]') : null;
-        if (!a) return;
-        var url = a.getAttribute('data-tab-url') || a.getAttribute('href');
-        var name = a.getAttribute('data-tab-name') || (a.textContent || '').trim();
-        var eid = a.getAttribute('data-tab-eid');
-        if (!url) return;
-        if (tryOpenTab(url, name, eid)) {
-          e.preventDefault();
-          e.stopPropagation();
-        }
-      },
-      true
-    );
-  })();
+        document.addEventListener(
+            'click',
+            function (e) {
+                var target = e.target;
+                var a = target && target.closest ? target.closest('a[data-open-tab="1"]') : null;
+                if (!a) return;
+                var url = a.getAttribute('data-tab-url') || a.getAttribute('href');
+                var name = a.getAttribute('data-tab-name') || (a.textContent || '').trim();
+                var eid = a.getAttribute('data-tab-eid');
+                if (!url) return;
+                if (tryOpenTab(url, name, eid)) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }
+            },
+            true
+        );
+    })();
 </script>
 {% endblock %}

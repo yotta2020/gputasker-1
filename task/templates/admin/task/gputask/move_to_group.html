@@ -14,7 +14,7 @@
     </div>
 
     {% for obj in objects %}
-      <input type="hidden" name="{{ action_checkbox_name }}" value="{{ obj.pk }}" />
+    <input type="hidden" name="{{ action_checkbox_name }}" value="{{ obj.pk }}" />
     {% endfor %}
     <input type="hidden" name="action" value="{{ action_name }}" />
     <input type="hidden" name="apply" value="1" />
@@ -28,7 +28,7 @@
       <h2>将被移动的任务</h2>
       <ul>
         {% for obj in objects %}
-          <li>{{ obj }}</li>
+        <li>{{ obj }}</li>
         {% endfor %}
       </ul>
     </div>
