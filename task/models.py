@@ -8,18 +8,59 @@ from gpu_info.models import GPUServer, GPUInfo
 from django.contrib.auth.models import User
 
 
+class Project(models.Model):
+    name = models.CharField('项目名称', max_length=200, unique=True)
+    archived = models.BooleanField('归档', default=False)
+    create_at = models.DateTimeField('创建时间', auto_now_add=True)
+    update_at = models.DateTimeField('更新时间', auto_now=True)
+
+    class Meta:
+        verbose_name = '项目'
+        verbose_name_plural = '项目'
+        ordering = ('archived', 'name', 'id')
+
+    def __str__(self):
+        return self.name
+
+
+class TaskGroup(models.Model):
+    project = models.ForeignKey(Project, verbose_name='项目', on_delete=models.CASCADE, related_name='groups')
+    name = models.CharField('分组名称', max_length=200)
+    archived = models.BooleanField('归档', default=False)
+    create_at = models.DateTimeField('创建时间', auto_now_add=True)
+    update_at = models.DateTimeField('更新时间', auto_now=True)
+
+    class Meta:
+        verbose_name = '任务分组'
+        verbose_name_plural = '任务分组'
+        ordering = ('archived', 'name', 'id')
+        constraints = [
+            models.UniqueConstraint(fields=['project', 'name'], name='uniq_taskgroup_project_name'),
+        ]
+
+    def __str__(self):
+        return f'{self.project.name} / {self.name}'
+
+
 class GPUTask(models.Model):
     STATUS_CHOICE = (
         (-2, '未就绪'),
         (-1, '运行失败'),
         (-4, '节点失联'),
-        (-3, '调度中'),
         (0, '准备就绪'),
         (1, '运行中'),
         (2, '已完成'),
     )
     name = models.CharField('任务名称', max_length=100)
     user = models.ForeignKey(User, verbose_name='用户', on_delete=models.CASCADE, related_name='tasks')
+    group = models.ForeignKey(
+        TaskGroup,
+        verbose_name='分组',
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name='tasks'
+    )
     workspace = models.CharField('工作目录', max_length=200)
     cmd = models.TextField('命令')
     gpu_requirement = models.PositiveSmallIntegerField(
@@ -33,6 +74,7 @@ class GPUTask(models.Model):
     assign_server = models.ForeignKey(GPUServer, verbose_name='指定服务器', on_delete=models.SET_NULL, blank=True, null=True)
     priority = models.SmallIntegerField('优先级', default=0)
     status = models.SmallIntegerField('状态', choices=STATUS_CHOICE, default=0)
+    dispatching_at = models.DateTimeField('调度认领时间', blank=True, null=True)
     create_at = models.DateTimeField('创建时间', auto_now_add=True)
     update_at = models.DateTimeField('更新时间', auto_now=True)
 
@@ -42,6 +84,23 @@ class GPUTask(models.Model):
 
     def __str__(self):
         return self.name
+
+    @property
+    def project(self):
+        if self.group_id is None:
+            return None
+        return self.group.project
+
+    def _normalize_cmd(self):
+        if not isinstance(self.cmd, str):
+            return
+        self.cmd = self.cmd.replace('\r\n', '\n')
+        if self.cmd and self.cmd[-1] != '\n':
+            self.cmd = self.cmd + '\n'
+
+    def save(self, *args, **kwargs):
+        self._normalize_cmd()
+        super().save(*args, **kwargs)
 
     def find_available_server(self):
         # TODO(Yuhao Wang): 优化算法，找最优server
@@ -91,6 +150,7 @@ class GPUTaskRunningLog(models.Model):
     remote_pgid = models.IntegerField('远端PGID', blank=True, null=True)
     gpus = models.CharField('GPU', max_length=20)
     log_file_path = models.FilePathField(path='running_log', match='.*\.log$', verbose_name="日志文件")
+    remark = models.CharField('备注', max_length=200, blank=True, default='')
     status = models.SmallIntegerField('状态', choices=STATUS_CHOICE, default=1)
     last_heartbeat_at = models.DateTimeField('最近心跳时间', blank=True, null=True)
     start_at = models.DateTimeField('开始时间', auto_now_add=True)

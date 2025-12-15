@@ -2,6 +2,7 @@ import os
 import time
 import threading
 import logging
+from datetime import timedelta
 
 import django
 
@@ -12,6 +13,8 @@ from base.utils import get_admin_config
 from task.models import GPUTask
 from task.utils import run_task, mark_stale_running_tasks_as_lost
 from gpu_info.utils import GPUInfoUpdater
+from django.db.models import Q
+from django.utils import timezone
 
 task_logger = logging.getLogger('django.task')
 
@@ -49,12 +52,33 @@ if __name__ == '__main__':
 
             if gpu_update_mode == 'ssh':
                 gpu_updater.update_gpu_info()
-            # 任务原子认领：避免并发/多实例重复启动
+
+            # 兼容清理：旧版本会把任务置为 -3(调度中)。新版本已移除该状态，统一回收到“准备就绪”。
+            try:
+                GPUTask.objects.filter(status=-3).update(status=0, dispatching_at=None)
+            except Exception:
+                pass
+            # 任务原子认领：避免并发/多实例重复启动。
+            # 说明：历史上用 status=-3(调度中) 做中间态，容易在异常时卡死；现在用 dispatching_at 替代。
+            try:
+                claim_stale_seconds = max(5, int(os.getenv('GPUTASKER_DISPATCH_CLAIM_STALE_SECONDS', '60')))
+            except ValueError:
+                claim_stale_seconds = 60
+            now = timezone.now()
+            stale_before = now - timedelta(seconds=claim_stale_seconds)
+
             task_ids = list(
-                GPUTask.objects.filter(status=0).order_by('-priority', 'create_at').values_list('id', flat=True)
+                GPUTask.objects.filter(status=0)
+                .filter(Q(dispatching_at__isnull=True) | Q(dispatching_at__lt=stale_before))
+                .order_by('-priority', 'create_at')
+                .values_list('id', flat=True)
             )
             for task_id in task_ids:
-                claimed = GPUTask.objects.filter(id=task_id, status=0).update(status=-3)
+                claimed = (
+                    GPUTask.objects.filter(id=task_id, status=0)
+                    .filter(Q(dispatching_at__isnull=True) | Q(dispatching_at__lt=stale_before))
+                    .update(dispatching_at=now)
+                )
                 if claimed != 1:
                     continue
                 t = threading.Thread(target=run_task, args=(task_id,))

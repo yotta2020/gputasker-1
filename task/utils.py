@@ -7,6 +7,7 @@ import traceback
 import logging
 import base64
 import threading
+import re
 from django.utils import timezone
 
 from gpu_tasker.settings import RUNNING_LOG_DIR
@@ -293,6 +294,22 @@ def run_task(task_id, _available_server_unused=None):
     # 线程里重新加载，避免主线程的对象过期
     task = GPUTask.objects.select_related('user', 'assign_server', 'user__config').get(id=task_id)
 
+    # 仅调度“准备就绪”的任务；否则清理认领锁避免卡死。
+    if task.status != 0:
+        try:
+            GPUTask.objects.filter(id=task.id).update(dispatching_at=None)
+        except Exception:
+            pass
+        return
+
+    def _safe_filename(name: str, limit: int = 80) -> str:
+        if not name:
+            return 'task'
+        s = (name or '').replace(os.sep, '_')
+        s = re.sub(r'[^0-9A-Za-z._-]+', '_', s)
+        s = s.strip('._-') or 'task'
+        return s[:limit]
+
     # 选 server + GPU，并尝试原子占用
     candidate_servers = []
     if task.assign_server is not None:
@@ -306,62 +323,82 @@ def run_task(task_id, _available_server_unused=None):
 
     # 先创建 running_log 拿到 id，用于 GPU busy_by_log_id 归属
     index = task.task_logs.all().count()
-    for s in candidate_servers:
-        available_gpus = s.get_available_gpus(
-            task.gpu_requirement,
-            task.exclusive_gpu,
-            task.memory_requirement,
-            task.utilization_requirement,
-        )
-        if available_gpus is None:
-            continue
-        chosen = available_gpus[:task.gpu_requirement]
-        log_file_path = os.path.join(
-            RUNNING_LOG_DIR,
-            '{:d}_{:s}_{:s}_{:d}_{:d}.log'.format(task.id, task.name, s.ip, index, int(time.time()))
-        )
+    try:
+        for s in candidate_servers:
+            available_gpus = s.get_available_gpus(
+                task.gpu_requirement,
+                task.exclusive_gpu,
+                task.memory_requirement,
+                task.utilization_requirement,
+            )
+            if available_gpus is None:
+                continue
+            chosen = available_gpus[:task.gpu_requirement]
+            log_file_path = os.path.join(
+                RUNNING_LOG_DIR,
+                '{:d}_{:s}_{:s}_{:d}_{:d}.log'.format(task.id, _safe_filename(task.name), s.ip, index, int(time.time()))
+            )
 
-        tmp_log = GPUTaskRunningLog(
-            index=index,
-            task=task,
-            server=s,
-            pid=-1,
-            remote_pid=None,
-            remote_pgid=None,
-            gpus=','.join(map(str, chosen)),
-            log_file_path=log_file_path,
-            status=1,
-        )
-        tmp_log.save()
+            tmp_log = GPUTaskRunningLog(
+                index=index,
+                task=task,
+                server=s,
+                pid=-1,
+                remote_pid=None,
+                remote_pgid=None,
+                gpus=','.join(map(str, chosen)),
+                log_file_path=log_file_path,
+                remark='',
+                status=1,
+            )
+            tmp_log.save()
 
-        locked = try_lock_gpus(s, chosen, busy_by_log_id=tmp_log.id)
-        if locked == len(chosen):
-            server = s
-            gpus = chosen
-            running_log = tmp_log
-            break
+            locked = try_lock_gpus(s, chosen, busy_by_log_id=tmp_log.id)
+            if locked == len(chosen):
+                server = s
+                gpus = chosen
+                running_log = tmp_log
+                break
 
-        # 可能部分占用成功，需要按 busy_by_log_id 精确释放
+            # 可能部分占用成功，需要按 busy_by_log_id 精确释放
+            try:
+                release_gpus(s, chosen, busy_by_log_id=tmp_log.id)
+            except Exception:
+                task_logger.error(traceback.format_exc())
+
+            # 没抢到：删掉临时 log，继续尝试别的 server
+            try:
+                tmp_log.delete()
+            except Exception:
+                pass
+    except Exception:
+        # 选 GPU/写运行记录阶段异常：清理认领锁，避免任务卡住
         try:
-            release_gpus(s, chosen, busy_by_log_id=tmp_log.id)
-        except Exception:
-            task_logger.error(traceback.format_exc())
-
-        # 没抢到：删掉临时 log，继续尝试别的 server
-        try:
-            tmp_log.delete()
+            GPUTask.objects.filter(id=task.id, status=0).update(dispatching_at=None)
         except Exception:
             pass
+        raise
 
     if server is None or gpus is None or running_log is None:
-        # 没有可用 GPU：把任务从“调度中”退回“准备就绪”
-        GPUTask.objects.filter(id=task.id, status=-3).update(status=0)
+        # 没有可用 GPU：保持“准备就绪”，并释放认领锁
+        GPUTask.objects.filter(id=task.id, status=0).update(dispatching_at=None)
         return
 
     log_file_path = running_log.log_file_path
     try:
-        # 标记为运行中（只从调度中切换，避免并发覆盖）
-        GPUTask.objects.filter(id=task.id, status=-3).update(status=1)
+        # 标记为运行中（只从准备就绪切换，避免并发覆盖），并清理认领锁
+        started = GPUTask.objects.filter(id=task.id, status=0).update(status=1, dispatching_at=None)
+        if started != 1:
+            try:
+                running_log.status = -1
+                running_log.save(update_fields=['status', 'update_at'])
+            except Exception:
+                pass
+            try:
+                release_gpus(server, gpus, busy_by_log_id=running_log.id)
+            except Exception:
+                task_logger.error(traceback.format_exc())
+            return
 
         # run process (remote process group)
         process = RemoteGPUProcessGroup(
@@ -425,6 +462,11 @@ def run_task(task_id, _available_server_unused=None):
     except Exception:
         es = traceback.format_exc()
         task_logger.error(es)
+        # 异常兜底：如果任务仍是“准备就绪”，清理认领锁，避免卡死
+        try:
+            GPUTask.objects.filter(id=task.id, status=0).update(dispatching_at=None)
+        except Exception:
+            pass
         try:
             running_log.status = -1
             running_log.save(update_fields=['status', 'update_at'])
